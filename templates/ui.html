@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>경제용 AI 검색</title>
+
+    <!-- Open Graph 메타태그 (SNS 미리보기용) -->
+    <meta property="og:title" content="경제용 – AI 경제 검색 챗봇" />
+    <meta property="og:description" content="경제 뉴스, 경제용어, AI 챗봇 검색까지 한 번에. 경제 콘텐츠 검색 플랫폼." />
+    <meta property="og:image" content="https://img2.stibee.com/d2fad6b1-3012-4b5c-943a-3ca4c6a1b546.png" />
+    <meta property="og:url" content="https://e-dragon.kr" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- 나눔스퀘어 폰트 추가 -->
+    <link
+      href="https://cdn.jsdelivr.net/gh/moonspam/NanumSquare@2.0/nanumsquare.css"
+      rel="stylesheet"
+    />
+    <!-- Pretendard 폰트 추가 -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: "#00C2AB",
+              "primary-dark": "#079889",
+              "primary-light": "#C8FAF4",
+              accent: "#F7D271",
+              dark: "#393939",
+            },
+            fontFamily: {
+              sans: [
+                "Pretendard",
+                "Nanum Square",
+                "Noto Sans KR",
+                "sans-serif",
+              ],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      :root {
+        --primary: #00c2ab;
+        --primary-dark: #079889;
+        --primary-light: #c8faf4;
+        --accent: #f7d271;
+        --text-dark: #393939;
+        --text-light: #ffffff;
+      }
+
+      body {
+        font-family: "Nanum Square", "Pretendard", "Noto Sans KR", sans-serif;
+        color: var(--text-dark);
+      }
+
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+      }
+
+      .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 90%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      }
+
+      .markdown-content h1,
+      .markdown-content h2,
+      .markdown-content h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: bold;
+      }
+
+      .markdown-content p {
+        margin-bottom: 1rem;
+      }
+
+      .markdown-content ul,
+      .markdown-content ol {
+        margin-bottom: 1rem;
+        margin-left: 2rem;
+      }
+
+      .dragon-character-image {
+        width: 250px;
+        height: 250px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+        animation: float 6s ease-in-out infinite;
+      }
+
+      @keyframes float {
+        0% {
+          transform: translateY(0px);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+        100% {
+          transform: translateY(0px);
+        }
+      }
+
+      .chat-bubble {
+        margin-bottom: 12px;
+        padding: 12px 16px;
+        border-radius: 12px;
+        max-width: 80%;
+      }
+
+      .user-bubble {
+        background-color: var(--primary);
+        color: white;
+        align-self: flex-end;
+      }
+
+      .bot-bubble {
+        background-color: #f3f4f6;
+        color: #1f2937;
+      }
+
+      .bot-bubble.sources-info {
+        background-color: var(--primary-light);
+        border: 1px solid var(--primary);
+      }
+
+      .bot-bubble.citations-info {
+        background-color: var(--accent);
+        border: 1px solid #f59e0b;
+      }
+
+      .tab-button.active {
+        color: var(--primary);
+        border-bottom: 2px solid var(--primary);
+      }
+
+      .tab-button {
+        color: #6b7280;
+        border-bottom: 2px solid transparent;
+        transition: all 0.3s;
+      }
+
+      .tab-button:hover {
+        color: var(--primary);
+      }
+
+      .citation-link {
+        color: var(--primary-dark);
+        text-decoration: none;
+        font-size: 0.75rem;
+        vertical-align: super;
+        margin: 0 2px;
+        cursor: pointer;
+      }
+
+      .citation-link:hover {
+        text-decoration: underline;
+      }
+
+      .search-suggestion {
+        transition: all 0.3s;
+        border: 1px solid transparent;
+        border-radius: 10px;
+      }
+
+      .search-suggestion:hover {
+        background-color: var(--primary-light);
+        border-color: var(--primary);
+        transform: translateX(4px);
+      }
+
+      .answer-container {
+        line-height: 1.8;
+      }
+
+      .answer-container h2,
+      .answer-container h3 {
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
+        font-weight: bold;
+      }
+
+      .answer-container p {
+        margin-bottom: 1rem;
+      }
+
+      /* Video Banner Styles */
+      .video-banner {
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .video-banner:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+
+
+      .video-banner-content {
+        padding: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .video-banner-text {
+        font-weight: 500;
+        color: white;
+        text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
+      }
+
+      .play-icon {
+        font-size: 1.5rem;
+        padding: 0.5rem;
+        background-color: rgba(255, 255, 255, 0.9);
+        border-radius: 50%;
+        color: var(--primary);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .card-effect {
+        transition: all 0.3s ease;
+      }
+
+      .card-effect:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 194, 171, 0.1);
+      }
+
+      #send-button,
+      .modal button {
+        transition: all 0.3s ease;
+      }
+
+      #send-button:hover,
+      .modal button:hover {
+        transform: translateY(-2px);
+      }
+
+      #send-button:active,
+      .modal button:active {
+        transform: translateY(1px);
+      }
+    </style>
+  </head>
+  <body
+    class="flex flex-col min-h-screen items-center selection:bg-[#C8FAF4] selection:text-[#079889]"
+  >
+    <!-- 서울경제 로고 - 페이지 최상단 -->
+    <div
+      class="w-full py-2 shadow-sm flex justify-center border-b border-gray-100"
+    >
+      <a href="https://www.sedaily.com/" target="_blank">
+        <img
+          src="static/img/서울경제 로고.jpg"
+          alt="서울경제"
+          class="h-48"
+          onerror="this.style.display='none'"
+        />
+      </a>
+    </div>
+
+    <!-- 경제용 헤더 - 여백 축소 -->
+    <header class="w-full max-w-5xl text-center py-2 px-4 mt-1">
+      <h1 class="text-4xl font-bold text-[#00C2AB]">경제용</h1>
+      <p class="mt-1 text-gray-600">
+        경제 용어와 최신 경제 콘텐츠를 쉽게 알아보세요! 🐲
+      </p>
+      <div class="flex justify-center items-center">
+        <a
+          href="https://www.instagram.com/economy_dragon_/"
+          target="_blank"
+          class="text-[#00C2AB] hover:text-[#079889] transition-colors"
+        >
+          <i class="fab fa-instagram text-2xl"></i>
+          <span class="ml-1 text-sm">@economy_dragon_</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- 1면 언박싱 Video Banner - 여백 축소 -->
+    <div class="w-full max-w-5xl mb-4 px-4 sm:px-0">
+      <div
+        id="video-banner"
+        class="video-banner rounded-xl overflow-hidden shadow-lg"
+        style="
+          background: linear-gradient(to right, #00c2ab, #079889);
+          height: 70px;
+        "
+      >
+        <div
+          class="video-banner-content flex items-center justify-center h-full"
+        >
+          <i class="fas fa-play-circle play-icon"></i>
+          <span class="video-banner-text text-xl">서울경제 1면 언박싱</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 검색창 - 여백 축소 -->
+    <div class="w-full max-w-5xl mb-4 px-4 sm:px-0">
+      <div class="relative">
+        <input
+          type="text"
+          id="global-search"
+          placeholder="경제 용어 또는 콘텐츠 검색..."
+          class="w-full pl-10 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none transition-all duration-300"
+        />
+        <svg
+          class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+      </div>
+    </div>
+
+    <!-- 탭 네비게이션 - 여백 축소 -->
+    <div class="w-full max-w-5xl mb-4">
+      <div
+        class="flex justify-center space-x-4 sm:space-x-8 border-b border-gray-200 pb-1"
+      >
+        <button
+          id="tab-chatbot"
+          class="tab-button text-md sm:text-lg py-1 px-3 sm:px-4 active"
+        >
+          AI 검색
+        </button>
+        <button
+          id="tab-terms"
+          class="tab-button text-md sm:text-lg py-1 px-3 sm:px-4"
+        >
+          경제 용어
+        </button>
+        <button
+          id="tab-contents"
+          class="tab-button text-md sm:text-lg py-1 px-3 sm:px-4"
+        >
+          최신 콘텐츠
+        </button>
+      </div>
+    </div>
+
+    <!-- 메인 챗봇 섹션 - 여백 최적화 -->
+    <main
+      id="chatbot-section"
+      class="w-full max-w-3xl flex-grow flex flex-col bg-white shadow-2xl rounded-2xl p-4 space-y-4 border border-gray-200"
+    >
+      <div
+        class="flex flex-col sm:flex-row items-center justify-center sm:space-x-6 p-4 bg-gradient-to-r from-[#C8FAF4] to-[#E5FDFB] rounded-xl shadow-md"
+      >
+        <img
+          src="https://img2.stibee.com/d2fad6b1-3012-4b5c-943a-3ca4c6a1b546.png"
+          alt="[귀여운 경제용 캐릭터]"
+          class="dragon-character-image drop-shadow-lg mb-2 sm:mb-0"
+        />
+        <div>
+          <p class="text-2xl font-bold text-[#00C2AB] text-center sm:text-left">
+            안녕! 나는 경제용이야 🐲
+          </p>
+          <p class="text-lg text-[#079889] mt-1 text-center sm:text-left">
+            어려운 경제, 내가 쉽고 재미있게 알려줄게!
+          </p>
+          <p class="text-md text-[#079889] mt-0.5 text-center sm:text-left">
+            뭐든지 물어봐용~ 경제 질문은 모두 환영이야!
+          </p>
+        </div>
+      </div>
+
+      <!-- 추천 검색어 - 여백 축소 -->
+      <div id="suggested-searches" class="mb-3">
+        <h3 class="text-lg font-medium mb-2 text-[#393939]">추천 AI 검색어</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div
+            class="search-suggestion bg-white p-3 rounded-lg cursor-pointer border shadow-sm card-effect"
+          >
+            <p class="text-gray-800">ETF란 무엇인가요?</p>
+          </div>
+          <div
+            class="search-suggestion bg-white p-3 rounded-lg cursor-pointer border shadow-sm card-effect"
+          >
+            <p class="text-gray-800">금리인상이 주식시장에 미치는 영향은?</p>
+          </div>
+          <div
+            class="search-suggestion bg-white p-3 rounded-lg cursor-pointer border shadow-sm card-effect"
+          >
+            <p class="text-gray-800">인플레이션 헤지 방법은 무엇인가요?</p>
+          </div>
+          <div
+            class="search-suggestion bg-white p-3 rounded-lg cursor-pointer border shadow-sm card-effect"
+          >
+            <p class="text-gray-800">요즘 주목받는 경제 이슈는 무엇인가요?</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 대화 출력 영역 - 여백 유지 -->
+      <div
+        id="chat-output"
+        class="flex-grow h-96 overflow-y-auto p-4 space-y-2 border border-gray-200 rounded-xl bg-gray-50 flex flex-col"
+      >
+        <div class="chat-bubble bot-bubble">
+          <span class="font-semibold">경제용:</span> 무엇이 궁금한가용? 경제
+          관련 질문을 해보세용!
+        </div>
+      </div>
+
+      <!-- 입력 영역 - 여백 조정 -->
+      <div class="flex items-center space-x-3 pt-3 border-t border-gray-200">
+        <input
+          type="text"
+          id="chat-input"
+          placeholder="여기에 질문을 입력하세요..."
+          class="flex-grow p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none transition-all duration-300"
+        />
+        <button
+          id="send-button"
+          class="bg-[#00C2AB] hover:bg-[#079889] text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-300"
+        >
+          검색
+        </button>
+      </div>
+    </main>
+
+    <main
+      id="terms-section"
+      class="w-full max-w-5xl flex-grow flex-col bg-white shadow-2xl rounded-xl p-6 space-y-6 border border-gray-200 hidden"
+    >
+      <h2
+        class="text-2xl font-bold text-[#00C2AB] mb-6 text-center sm:text-left"
+      >
+        경제 용어 모음
+        <span id="terms-count" class="text-sm font-normal text-gray-500"
+          >(0)</span
+        >
+      </h2>
+      <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+        <div class="relative flex-grow md:max-w-md">
+          <input
+            type="text"
+            id="terms-search"
+            placeholder="경제 용어 검색..."
+            class="w-full pl-10 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none transition-all duration-300"
+          />
+          <svg
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+        <div class="flex items-center">
+          <span class="text-sm text-gray-600 mr-2">정렬:</span>
+          <select
+            id="terms-sort"
+            class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none"
+          >
+            <option value="number-asc">번호 오름차순</option>
+            <option value="number-desc">번호 내림차순</option>
+            <option value="title-asc">제목 오름차순</option>
+            <option value="title-desc">제목 내림차순</option>
+          </select>
+        </div>
+      </div>
+      <div
+        id="terms-grid"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      ></div>
+      <div id="terms-no-results" class="text-center py-10 hidden">
+        <p class="text-gray-500">검색 결과가 없습니다.</p>
+        <button
+          id="terms-reset-search"
+          class="mt-2 text-[#00C2AB] hover:text-[#079889]"
+        >
+          검색 초기화
+        </button>
+      </div>
+    </main>
+
+    <main
+      id="contents-section"
+      class="w-full max-w-5xl flex-grow flex-col bg-white shadow-2xl rounded-xl p-6 space-y-6 border border-gray-200 hidden"
+    >
+      <h2
+        class="text-2xl font-bold text-[#00C2AB] mb-6 text-center sm:text-left"
+      >
+        최신 경제 콘텐츠
+        <span id="contents-count" class="text-sm font-normal text-gray-500"
+          >(0)</span
+        >
+      </h2>
+      <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+        <div class="relative flex-grow md:max-w-md">
+          <input
+            type="text"
+            id="contents-search"
+            placeholder="콘텐츠 검색..."
+            class="w-full pl-10 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none transition-all duration-300"
+          />
+          <svg
+            class="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+        </div>
+        <div class="flex items-center">
+          <span class="text-sm text-gray-600 mr-2">정렬:</span>
+          <select
+            id="contents-sort"
+            class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00C2AB] focus:border-transparent outline-none"
+          >
+            <option value="number-desc">번호 내림차순</option>
+            <option value="number-asc">번호 오름차순</option>
+            <option value="title-asc">제목 오름차순</option>
+            <option value="title-desc">제목 내림차순</option>
+          </select>
+        </div>
+      </div>
+      <div
+        id="contents-grid"
+        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+      ></div>
+      <div id="contents-no-results" class="text-center py-10 hidden">
+        <p class="text-gray-500">검색 결과가 없습니다.</p>
+        <button
+          id="contents-reset-search"
+          class="mt-2 text-[#00C2AB] hover:text-[#079889]"
+        >
+          검색 초기화
+        </button>
+      </div>
+    </main>
+
+    <div id="content-modal" class="modal">
+      <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+          <h2 id="modal-title" class="text-2xl font-bold text-[#00C2AB]"></h2>
+          <button
+            id="modal-close"
+            class="text-gray-500 hover:text-gray-700 p-2 transition-colors duration-200 rounded-full hover:bg-gray-100"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div id="modal-date" class="text-sm text-gray-500 mb-4"></div>
+        <div id="modal-content-body" class="markdown-content"></div>
+        <div class="mt-6 text-center">
+          <button
+            id="modal-close-bottom"
+            class="px-6 py-2 bg-[#00C2AB] text-white rounded-lg hover:bg-[#079889] transition-all duration-300"
+          >
+            닫기
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="w-full max-w-5xl text-center p-6 mt-8">
+      <h2 class="text-2xl font-semibold text-[#393939] mb-6">
+        놓치면 아쉬운 경제용 이야기 🐲
+      </h2>
+      <div class="space-y-3">
+        <div
+          class="footer-list-item p-4 bg-white border border-gray-200 hover:border-[#00C2AB] rounded-xl shadow-sm cursor-pointer text-left card-effect"
+        >
+          <h3 class="font-bold text-[#00C2AB] text-lg">
+            📈 ETF, 제대로 알고 투자하기
+          </h3>
+          <p class="text-sm text-gray-600 mt-1">
+            분산투자의 마법사 ETF! 개념부터 활용 전략까지 경제용이 콕콕
+            알려줄게용.
+          </p>
+        </div>
+        <div
+          class="footer-list-item p-4 bg-white border border-gray-200 hover:border-[#00C2AB] rounded-xl shadow-sm cursor-pointer text-left card-effect"
+        >
+          <h3 class="font-bold text-[#00C2AB] text-lg">
+            🏦 금리 변동, 내 지갑에 미치는 영향은?
+          </h3>
+          <p class="text-sm text-gray-600 mt-1">
+            금리가 오르락내리락~ 내 자산 관리는 어떻게 해야 할까용? 경제용과
+            함께 알아봐용!
+          </p>
+        </div>
+        <div
+          class="footer-list-item p-4 bg-white border border-gray-200 hover:border-[#00C2AB] rounded-xl shadow-sm cursor-pointer text-left card-effect"
+        >
+          <h3 class="font-bold text-[#00C2AB] text-lg">
+            📊 주린이를 위한 첫걸음, 주식 투자 가이드
+          </h3>
+          <p class="text-sm text-gray-600 mt-1">
+            주식 투자가 처음이라면? 경제용이 알려주는 필수 용어와 투자 원칙!
+            겁먹지 말고 시작해용!
+          </p>
+        </div>
+      </div>
+      <div class="mt-6 flex justify-center items-center">
+        <a
+          href="https://www.instagram.com/economy_dragon_/"
+          target="_blank"
+          class="flex items-center text-[#00C2AB] hover:text-[#079889] transition-colors"
+        >
+          <i class="fab fa-instagram text-xl mr-2"></i>
+          <span>@economy_dragon_</span>
+        </a>
+      </div>
+    </footer>
+
+
+    <!-- JavaScript 파일 로드 -->
+    <script src="static/js/content-data.js"></script>
+    <script src="static/js/chatbot.js"></script>
+    <script src="static/js/content-manager.js"></script>
+    <script src="static/js/app.js"></script>
+  </body>
+</html>

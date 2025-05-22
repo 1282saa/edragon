@@ -1,0 +1,607 @@
+:root {
+  --primary: #00c2ab; /* 경제용 메인 색상 */
+  --primary-dark: #079889; /* 어두운 강조색 */
+  --primary-light: #c8faf4; /* 밝은 배경색 */
+  --accent: #f7d271; /* 강조색 (노란색) */
+  --text-dark: #393939; /* 어두운 텍스트 */
+  --text-light: #ffffff; /* 밝은 텍스트 */
+}
+
+body {
+  font-family: "Nanum Square", "Pretendard", "Noto Sans KR", sans-serif;
+  @apply bg-gray-100;
+}
+.chat-bubble {
+  max-width: 75%;
+  padding: 16px 20px;
+  border-radius: 22px;
+  margin-bottom: 16px;
+  word-wrap: break-word;
+  line-height: 1.8;
+  font-size: 1.05rem;
+}
+.user-bubble {
+  background-color: var(--primary); /* 제용이 메인 색상 */
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 8px;
+}
+.bot-bubble {
+  background-color: #f3f4f6; /* 매우 연한 회색 */
+  color: #1f2937; /* 어두운 회색 글자 */
+  align-self: flex-start;
+  border-bottom-left-radius: 8px;
+}
+.footer-list-item {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+.footer-list-item:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 194, 171, 0.1);
+}
+#chat-output::-webkit-scrollbar {
+  width: 8px;
+}
+#chat-output::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+#chat-output::-webkit-scrollbar-thumb {
+  background: var(--primary); /* 제용이 메인 색상 스크롤바 */
+  border-radius: 4px;
+}
+#chat-output::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-dark); /* 더 진한 제용이 색상 */
+}
+.dragon-character-image {
+  width: 250px; /* 이미지 크기 확대 */
+  height: auto; /* 비율 유지 */
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* 스트리밍 메시지 스타일 */
+.typing-cursor {
+  color: var(--primary);
+  font-weight: bold;
+}
+
+/* 상태 메시지 스타일 */
+.status-message {
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary);
+}
+
+/* 인용 정보 스타일 */
+.citations-info {
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary);
+}
+
+.citation-number {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  background-color: var(--primary);
+  color: white;
+}
+
+/* 소스 표시 스타일 */
+.sources-indicator {
+  background-color: var(--primary-light);
+  border: 1px solid var(--primary);
+  padding: 8px 12px;
+  font-size: 0.875rem;
+}
+
+/* 로딩 애니메이션 */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 타이핑 효과 */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes blink {
+  from,
+  to {
+    border-color: transparent;
+  }
+  50% {
+    border-color: var(--primary);
+  }
+}
+
+/* 하이라이트된 인용 스타일 */
+.highlighted-citation {
+  background-color: var(--primary-light);
+  border: 2px solid var(--primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  animation: citation-pulse 2s ease-in-out infinite;
+}
+
+@keyframes citation-pulse {
+  0%,
+  100% {
+    background-color: var(--primary-light);
+  }
+  50% {
+    background-color: rgba(0, 194, 171, 0.2);
+  }
+}
+.message-content {
+  display: inline;
+}
+
+/* 스크롤 스냅 */
+#chat-output {
+  scroll-behavior: smooth;
+}
+
+/* 인용된 텍스트 하이라이트 */
+.highlighted-citation {
+  background-color: var(--primary-light);
+  border: 2px solid var(--primary);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* 모달 내 하이라이트 애니메이션 */
+.highlighted-citation {
+  animation: citation-pulse 2s ease-in-out infinite;
+}
+
+@keyframes citation-pulse {
+  0% {
+    background-color: var(--primary-light);
+  }
+  50% {
+    background-color: rgba(0, 194, 171, 0.2);
+  }
+  100% {
+    background-color: var(--primary-light);
+  }
+}
+
+/* 콘텐츠 카드 스타일 */
+.content-card {
+  @apply bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-300 ease-in-out hover:shadow-xl flex flex-col;
+  transform: translateY(0);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.content-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 30px rgba(0, 194, 171, 0.1);
+}
+
+.card-number-badge {
+  @apply absolute top-3 right-3 text-white text-xs font-semibold px-2.5 py-1 rounded-full;
+  background-color: var(--primary);
+}
+
+.card-content {
+  @apply p-5 flex-grow;
+}
+
+.card-title {
+  @apply text-lg font-semibold mb-2 leading-tight;
+  color: var(--primary-dark);
+}
+
+.card-summary {
+  @apply text-sm text-gray-600 mb-3 flex-grow;
+}
+
+.card-footer {
+  @apply px-5 py-3 border-t border-gray-200;
+  background-color: var(--primary-light);
+}
+
+.card-link {
+  @apply text-sm font-medium transition-colors;
+  color: var(--primary);
+}
+
+.card-link:hover {
+  color: var(--primary-dark);
+}
+
+/* 탭 스타일 */
+.tab-button {
+  @apply py-3 px-4 text-center font-medium transition-all duration-300 ease-in-out;
+}
+
+.active-tab {
+  @apply border-b-2 bg-[rgba(0,194,171,0.05)];
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.tab-button:not(.active-tab) {
+  @apply text-gray-500 hover:text-gray-700 hover:bg-gray-100;
+}
+
+/* 탭 컨텐츠 페인 */
+.tab-pane {
+  @apply hidden;
+}
+
+.active-pane {
+  @apply block;
+}
+
+/* 모달 스타일 */
+#modal {
+  @apply fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center p-4 z-50;
+}
+
+#modal-body .prose h1,
+#modal-body .prose h2,
+#modal-body .prose h3,
+#modal-body .prose h4,
+#modal-body .prose strong {
+  color: var(--text-dark);
+}
+
+#modal-body .prose p {
+  @apply text-gray-700;
+}
+
+#modal-body .prose a {
+  color: var(--primary);
+}
+
+#modal-body .prose a:hover {
+  color: var(--primary-dark);
+}
+
+#modal-body .prose ul,
+#modal-body .prose ol {
+  @apply text-gray-700;
+}
+
+#modal-body .prose li::marker {
+  color: var(--primary);
+}
+
+#modal-body .prose blockquote {
+  border-left-color: var(--primary);
+  background-color: var(--primary-light);
+  @apply border-l-4 p-4;
+  color: var(--primary-dark);
+}
+
+#modal-body .prose code {
+  @apply bg-gray-200 text-gray-800 rounded px-1 py-0.5 text-sm;
+}
+
+#modal-body .prose pre {
+  @apply bg-gray-800 text-gray-100 rounded p-4 text-sm overflow-x-auto;
+}
+
+/* 챗봇 UI */
+#chat-window {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: var(--primary) #e2e8f0; /* Firefox: thumb track */
+}
+
+#chat-window::-webkit-scrollbar {
+  width: 8px;
+}
+
+#chat-window::-webkit-scrollbar-track {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+#chat-window::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 10px;
+  border: 2px solid #e2e8f0;
+}
+
+.user-message .message-bubble {
+  background-color: var(--primary);
+  @apply text-white ml-auto;
+}
+
+.bot-message .message-bubble {
+  @apply bg-gray-200 text-gray-800 mr-auto;
+}
+
+.message-bubble {
+  @apply p-3 rounded-lg max-w-xs sm:max-w-md lg:max-w-lg break-words shadow;
+}
+
+.message-container {
+  @apply flex flex-col mb-3;
+}
+
+.message-sender {
+  @apply text-xs text-gray-500 mb-0.5;
+}
+
+.user-message .message-sender {
+  @apply text-right mr-1;
+}
+
+.bot-message .message-sender {
+  @apply text-left ml-1;
+}
+
+.citation {
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+  @apply inline-block text-xs font-semibold mr-1 mb-1 px-2 py-0.5 rounded-full cursor-pointer transition-colors;
+}
+
+.citation:hover {
+  background-color: var(--primary);
+  color: white;
+}
+
+.citation-details {
+  @apply mt-2 p-3 bg-gray-100 border border-gray-200 rounded-md text-xs;
+}
+
+/* 로딩 스피너 */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.fa-spinner {
+  animation: spin 1s linear infinite;
+  color: var(--primary);
+}
+
+/* 검색 결과 없음 메시지 */
+#no-results-message i {
+  color: var(--primary-light);
+}
+
+/* tailwindcss prose 스타일 오버라이드 (필요시) */
+.prose {
+  @apply max-w-none;
+}
+
+/* 버튼 효과 */
+button {
+  transition: all 0.3s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* 카드 효과 */
+.card-effect {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+
+.card-effect:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px rgba(0, 194, 171, 0.15);
+}
+
+/* 로딩 모달 스타일 */
+.loading-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.loading-content {
+  background-color: white;
+  padding: 3rem;
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.loading-character {
+  width: 150px;
+  height: auto;
+  animation: bounce 1.5s ease-in-out infinite;
+  margin-bottom: 2rem;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.loading-message {
+  font-size: 1.3rem;
+  color: var(--primary-dark);
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--primary-light);
+  border-top: 4px solid var(--primary);
+  border-radius: 50%;
+  margin: 0 auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* 비디오 모달 스타일 */
+.video-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.video-content {
+  background-color: white;
+  width: 90%;
+  max-width: 1000px;
+  height: 80%;
+  max-height: 700px;
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+.video-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  background-color: var(--primary);
+  color: white;
+}
+
+.video-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 8px;
+  transition: background-color 0.3s;
+}
+
+.close-button:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.video-container {
+  flex: 1;
+  position: relative;
+  background-color: #000;
+}
+
+.video-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.video-footer {
+  padding: 1rem;
+  text-align: center;
+  background-color: #f9f9f9;
+  border-top: 1px solid #e0e0e0;
+}
+
+.external-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.external-link:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .video-content {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+  }
+  
+  .video-header {
+    padding: 1rem;
+  }
+  
+  .video-title {
+    font-size: 1.2rem;
+  }
+}

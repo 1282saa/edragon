@@ -1,0 +1,18 @@
+{
+  "name": "unboxing-puppeteer-server",
+  "version": "1.0.0",
+  "description": "서울경제 1면 언박싱 비디오 자동재생 서버",
+  "main": "puppeteer_server.js",
+  "scripts": {
+    "start": "node puppeteer_server.js",
+    "dev": "nodemon puppeteer_server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^19.0.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

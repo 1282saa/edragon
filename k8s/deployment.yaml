@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-deploy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: chatbot
+  template:
+    metadata:
+      labels:
+        app: chatbot
+    spec:
+      containers:
+        - name: chatbot
+          image: asia-northeast3-docker.pkg.dev/economydragon-chatbot/chatbot-repo/chatbot:1.0 # ← 방금 푸시한 이미지 변수
+          ports:
+            - containerPort: 8080 # Dockerfile에서 사용하는 포트
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: openai-api-key
+            - name: PERPLEXITY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: perplexity-api-key
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-secrets
+                  key: flask-secret-key
+            - name: PORT
+              value: "8080"
