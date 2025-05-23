@@ -25,31 +25,34 @@ from langchain.prompts import ChatPromptTemplate
 load_dotenv()
 
 # Cloud Run 환경 감지
-RUNNING_ON_CLOUD_RUN = bool(os.getenv("K_SERVICE"))
+RUNNING_ON_CR = bool(os.getenv("K_SERVICE"))
 
-# 로깅 설정 - Cloud Run 환경에 따라 분기
-if RUNNING_ON_CLOUD_RUN:
-    # Cloud Run: stdout만 사용 (파일 시스템이 읽기 전용)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],   # stdout만
-    )
-    logger = logging.getLogger('unified_chatbot')
+# 로깅 핸들러 설정
+handlers = [logging.StreamHandler(sys.stdout)]
+if not RUNNING_ON_CR:
+    try:
+        os.makedirs("logs", exist_ok=True)
+        handlers.append(logging.FileHandler("logs/unified_chatbot.log"))
+    except Exception:
+        pass  # 로컬에서도 파일 생성 실패시 stdout만 사용
+else:
+    # Cloud Run - stdout만 사용 (필요시 /tmp에 로그 파일 생성 가능)
+    # logfile = "/tmp/unified_chatbot.log"
+    # handlers.append(logging.FileHandler(logfile))
+    pass
+
+# 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=handlers,
+)
+
+logger = logging.getLogger('unified_chatbot')
+if RUNNING_ON_CR:
     logger.info("Cloud Run 환경에서 실행 중 - stdout 로깅만 사용")
 else:
-    # 로컬 환경: 파일과 stdout 모두 사용
-    os.makedirs("logs", exist_ok=True)
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.FileHandler("logs/unified_chatbot.log"),
-            logging.StreamHandler(sys.stdout),
-        ],
-    )
-    logger = logging.getLogger('unified_chatbot')
-    logger.info("로컬 환경에서 실행 중 - 파일과 stdout 로깅 모두 사용")
+    logger.info("로컬 환경에서 실행 중")
 
 # 디렉토리 설정
 ROOT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
@@ -57,7 +60,7 @@ ECONOMY_TERMS_DIR = ROOT_DIR / "data" / "economy_terms"
 RECENT_CONTENTS_DIR = ROOT_DIR / "data" / "recent_contents_final"
 
 # Cloud Run에서는 /tmp 디렉토리를 사용
-if RUNNING_ON_CLOUD_RUN:  # Cloud Run 환경 감지
+if RUNNING_ON_CR:  # Cloud Run 환경 감지
     PERSISTENT_DIR = Path("/tmp/vector_db")
 else:
     PERSISTENT_DIR = ROOT_DIR / "data" / "vector_db"
