@@ -1,5 +1,6 @@
 import os
 import logging
+import sys
 import time
 import re
 from typing import List, Dict, Any, Optional, Tuple
@@ -23,18 +24,32 @@ from langchain.prompts import ChatPromptTemplate
 # 환경 변수 로드
 load_dotenv()
 
-# 로깅 설정
-# 로그 디렉토리 생성
-os.makedirs("logs", exist_ok=True)
+# Cloud Run 환경 감지
+RUNNING_ON_CLOUD_RUN = bool(os.getenv("K_SERVICE"))
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()  # stdout만 사용 (Cloud Run용)
-    ]
-)
-logger = logging.getLogger('unified_chatbot')
+# 로깅 설정 - Cloud Run 환경에 따라 분기
+if RUNNING_ON_CLOUD_RUN:
+    # Cloud Run: stdout만 사용 (파일 시스템이 읽기 전용)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],   # stdout만
+    )
+    logger = logging.getLogger('unified_chatbot')
+    logger.info("Cloud Run 환경에서 실행 중 - stdout 로깅만 사용")
+else:
+    # 로컬 환경: 파일과 stdout 모두 사용
+    os.makedirs("logs", exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler("logs/unified_chatbot.log"),
+            logging.StreamHandler(sys.stdout),
+        ],
+    )
+    logger = logging.getLogger('unified_chatbot')
+    logger.info("로컬 환경에서 실행 중 - 파일과 stdout 로깅 모두 사용")
 
 # 디렉토리 설정
 ROOT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
@@ -42,7 +57,7 @@ ECONOMY_TERMS_DIR = ROOT_DIR / "data" / "economy_terms"
 RECENT_CONTENTS_DIR = ROOT_DIR / "data" / "recent_contents_final"
 
 # Cloud Run에서는 /tmp 디렉토리를 사용
-if os.environ.get('K_SERVICE'):  # Cloud Run 환경 감지
+if RUNNING_ON_CLOUD_RUN:  # Cloud Run 환경 감지
     PERSISTENT_DIR = Path("/tmp/vector_db")
 else:
     PERSISTENT_DIR = ROOT_DIR / "data" / "vector_db"
