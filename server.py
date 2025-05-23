@@ -22,11 +22,14 @@ app = Flask(__name__)
 # 로그 디렉토리 생성
 os.makedirs('logs', exist_ok=True)
 
-# 로깅 설정
+# Cloud Run에서는 stdout으로 로깅해야 함
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    filename='logs/server.log'
+    handlers=[
+        logging.StreamHandler(sys.stdout),  # stdout으로 출력
+        logging.FileHandler('logs/server.log', mode='a')  # 파일에도 저장
+    ]
 )
 logger = logging.getLogger(__name__)
 

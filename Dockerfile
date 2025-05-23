@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 WORKDIR /app
 
+# 시스템 패키지 설치
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -8,27 +9,31 @@ RUN apt-get update && apt-get install -y \
     curl \
   && rm -rf /var/lib/apt/lists/*
 
+# Python 의존성 설치
 COPY requirements.txt .
 RUN pip install --upgrade pip \
   && pip install --no-cache-dir -r requirements.txt
 
+# 애플리케이션 코드 복사
 COPY . .
-RUN mkdir -p data/economy_terms data/recent_contents_final logs
 
-# (선택) 비특권 사용자로 실행
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
+# 필요한 디렉토리 생성 및 권한 설정
+RUN mkdir -p data/economy_terms data/recent_contents_final logs data/vector_db \
+  && chmod -R 755 data logs
 
-# (선택) 가독성용
+# Cloud Run은 PORT 환경변수를 설정하므로 기본값 설정
+ENV PORT=8080
+
+# 포트 노출
 EXPOSE 8080
 
-# (선택) 헬스체크
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD curl -f http://localhost:$PORT/health || exit 1
-
-# 프로덕션용 Gunicorn 실행
-CMD ["gunicorn", \
-     "server:app", \
-     "--bind", "0.0.0.0:8080", \
-     "--workers", "4", \
-     "--log-level", "info"]
+# Gunicorn 실행 (Cloud Run용 설정)
+CMD exec gunicorn \
+     --bind 0.0.0.0:$PORT \
+     --workers 1 \
+     --threads 8 \
+     --timeout 0 \
+     --log-level info \
+     --access-logfile - \
+     --error-logfile - \
+     server:app
