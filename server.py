@@ -28,21 +28,13 @@ app = Flask(__name__)
 # Cloud Run 환경 감지
 RUNNING_ON_CR = bool(os.getenv("K_SERVICE"))
 
-# 로깅 핸들러 설정
-handlers = [logging.StreamHandler(sys.stdout)]
-if not RUNNING_ON_CR:
-    try:
-        os.makedirs('logs', exist_ok=True)
-        handlers.append(logging.FileHandler('logs/server.log', mode='a'))
-    except Exception:
-        pass  # 로컬에서도 파일 생성 실패시 stdout만 사용
-else:
-    # Cloud Run - stdout만 사용 (필요시 /tmp에 로그 파일 생성 가능)
-    # logfile = "/tmp/server.log"
-    # handlers.append(logging.FileHandler(logfile))
-    pass
-
 # 로깅 설정
+handlers = [logging.StreamHandler(sys.stdout)]   # stdout은 항상 사용
+
+if not RUNNING_ON_CR:
+    os.makedirs('logs', exist_ok=True)           # 로컬·개발 환경만 파일로그
+    handlers.append(logging.FileHandler('logs/server.log', mode='a'))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
