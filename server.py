@@ -36,7 +36,9 @@ mimetypes.add_type('application/javascript', '.js')
 mimetypes.add_type('text/css', '.css')
 
 # 디렉토리 설정
-ROOT_DIR = Path(__file__).parent
+ROOT_DIR = os.environ.get('ROOT_DIR', Path(__file__).parent)
+if isinstance(ROOT_DIR, str):
+    ROOT_DIR = Path(ROOT_DIR)
 ECONOMY_TERMS_DIR = ROOT_DIR / "data" / "economy_terms"
 RECENT_CONTENTS_DIR = ROOT_DIR / "data" / "recent_contents_final"
 
@@ -45,10 +47,14 @@ logger.info(f"ECONOMY_TERMS_DIR: {ECONOMY_TERMS_DIR}")
 logger.info(f"RECENT_CONTENTS_DIR: {RECENT_CONTENTS_DIR}")
 
 # 폴더가 없는 경우 생성
-os.makedirs(ROOT_DIR / "data" / "economy_terms", exist_ok=True)
-os.makedirs(ROOT_DIR / "data" / "recent_contents_final", exist_ok=True)
+os.makedirs(ECONOMY_TERMS_DIR, exist_ok=True)
+os.makedirs(RECENT_CONTENTS_DIR, exist_ok=True)
 os.makedirs(ROOT_DIR / 'logs', exist_ok=True)
 os.makedirs(ROOT_DIR / 'templates', exist_ok=True)
+
+# 디렉토리 내용 확인 (디버깅)
+logger.info(f"경제 용어 디렉토리 내용: {[f.name for f in ECONOMY_TERMS_DIR.glob('*.md') if f.is_file()]}")
+logger.info(f"최신 콘텐츠 디렉토리 내용: {[f.name for f in RECENT_CONTENTS_DIR.glob('*.md') if f.is_file()]}")
 
 # 챗봇 초기화 상태 - 기본값을 True로 변경
 chatbot_ready = True

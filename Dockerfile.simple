@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Flask만 설치
+RUN pip install flask
+
+# 간단한 서버 파일 복사
+COPY server_simple.py .
+
+# 포트 설정
+EXPOSE 8080
+ENV PORT=8080
+
+# 서버 실행
+CMD ["python", "server_simple.py"] 

@@ -19,25 +19,26 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 데이터 디렉토리 생성
-RUN mkdir -p data/economy_terms data/recent_contents_final data/vector_db logs
-
-# 애플리케이션 파일 복사
+# 애플리케이션 파일 복사 - 먼저 모든 파일을 복사합니다
 COPY . .
+
+# 명시적인 절대 경로로 ROOT_DIR 환경 변수 설정
+ENV ROOT_DIR=/app
+ENV ENVIRONMENT=production
+ENV PUPPETEER_ENABLED=FALSE
+ENV PORT=8080
+ENV FLASK_APP=server.py
+ENV FLASK_ENV=production
+
+# 디버깅을 위한 디렉토리 내용 확인 명령
+RUN ls -la /app/data
+RUN ls -la /app/data/economy_terms || echo "경제 용어 디렉토리가 없습니다"
+RUN ls -la /app/data/recent_contents_final || echo "최신 콘텐츠 디렉토리가 없습니다"
 
 # 비특권 사용자 생성 및 소유권 변경
 RUN useradd -m appuser && \
     chown -R appuser:appuser /app
 USER appuser
-
-# 환경 변수 설정
-ENV ENVIRONMENT=production
-ENV PUPPETEER_ENABLED=FALSE
-ENV PORT=8080
-
-# Cloud Run은 PORT 환경변수를 자동으로 설정하므로 이를 사용
-ENV FLASK_APP=server.py
-ENV FLASK_ENV=production
 
 # 포트 노출 (Cloud Run에서 자동 할당)
 EXPOSE $PORT
@@ -46,5 +47,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:$PORT/health || exit 1
 
-# Gunicorn으로 애플리케이션 실행
-CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 --keep-alive 2 --max-requests 1000 --log-level info server:app
+# Gunicorn으로 애플리케이션 실행 (JSON 배열 형식)
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--threads", "8", "--timeout", "0", "--keep-alive", "2", "--max-requests", "1000", "--log-level", "debug", "server:app"]
