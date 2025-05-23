@@ -31,28 +31,34 @@ test_*.html
 *_test.html
 TEST_GUIDE.md
 
-# Documentation
+# Documentation (exclude only root level documentation)
 README.md
 LICENSE
-*.md
+DEPLOYMENT_CHECKLIST.md
+PROJECT_STRUCTURE.md
+CLOUD_RUN_DEPLOYMENT.md
+GITHUB_DEPLOY_GUIDE.md
 
-# Node.js (local development only)
+# Node.js (not needed for Python app)
 node_modules/
 package-lock.json
+package.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Local scripts
 run_*.sh
+scripts/
 
-# Environment files
+# Environment files (secrets should be set via Cloud Run)
 .env
 .env.*
 env.example
 
 # Database files (will be created at runtime)
 data/chroma_db/
+data/vector_db/
 *.sqlite3
 *.db
 
@@ -65,8 +71,16 @@ rag_chatbot.log
 current_versions.txt
 requirements_old.txt
 
-# Railway/deployment specific
+# Deployment specific
 .railway/
 railway.json
 Procfile
 nixpacks.toml
+k8s/
+
+# Certificate files
+cert/
+
+# Large binary files
+*.jar
+bfg.jar

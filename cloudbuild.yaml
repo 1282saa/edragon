@@ -1,0 +1,54 @@
+steps:
+  # Docker 이미지 빌드
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "gcr.io/$PROJECT_ID/sedaily-chatbot:$COMMIT_SHA",
+        "-t",
+        "gcr.io/$PROJECT_ID/sedaily-chatbot:latest",
+        ".",
+      ]
+
+  # Docker 이미지를 Container Registry에 푸시
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/sedaily-chatbot:$COMMIT_SHA"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/sedaily-chatbot:latest"]
+
+  # Cloud Run에 배포
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      [
+        "run",
+        "deploy",
+        "sedaily-chatbot",
+        "--image",
+        "gcr.io/$PROJECT_ID/sedaily-chatbot:$COMMIT_SHA",
+        "--region",
+        "asia-northeast3",
+        "--platform",
+        "managed",
+        "--allow-unauthenticated",
+        "--memory",
+        "4Gi",
+        "--cpu",
+        "2",
+        "--max-instances",
+        "10",
+        "--min-instances",
+        "1",
+        "--concurrency",
+        "50",
+        "--timeout",
+        "60",
+        "--cpu-boost",
+        "--set-env-vars",
+        "ENVIRONMENT=cloud_run,USE_PUPPETEER=false,PUPPETEER_ENABLED=FALSE",
+      ]
+
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,12 +1,14 @@
 import os
 import logging
 import time
+import re
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
 import json
 import concurrent.futures
 import requests
+import hashlib
 from functools import lru_cache
 
 # LangChain 임포트
@@ -49,11 +51,14 @@ class UnifiedChatbot:
         # 임베딩 및 LLM 설정
         self.embeddings = OpenAIEmbeddings(
             model="text-embedding-3-small",
-            openai_api_key=self.openai_api_key
+            openai_api_key=self.openai_api_key,
+            timeout=10  # API 타임아웃 추가
         )
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
             temperature=0.1,
+            max_tokens=1000,  # 토큰 수 제한으로 속도 향상
+            timeout=30,       # API 타임아웃 설정
             openai_api_key=self.openai_api_key
         )
         
@@ -72,6 +77,12 @@ class UnifiedChatbot:
         # 성능 모니터링
         self.load_time = 0
         self.index_time = 0
+        
+        # 응답 캐싱 시스템
+        self.response_cache = {}
+        self.cache_max_size = 100
+        self.cache_hits = 0
+        self.cache_misses = 0
         
         logger.info("UnifiedChatbot 인스턴스 생성")
         
@@ -413,28 +424,18 @@ class UnifiedChatbot:
     
     @lru_cache(maxsize=20)  # 최근 20개 쿼리 결과 캐싱
     def search_internal_documents(self, query: str) -> List[Document]:
-        """내부 문서에서 관련 정보 검색"""
-        if not self.rag_initialized:
-            logger.warning("RAG가 초기화되지 않았습니다")
+        """내부 문서 검색 - 캐시 및 결과 수 최적화"""
+        if not self.retriever:
             return []
-            
+        
         try:
-            logger.info(f"내부 문서 검색: {query[:50]}...")
-            start_time = time.time()
-            
-            # 앙상블 리트리버로 문서 검색
+            # 검색 결과를 3개로 제한하여 속도 향상
             docs = self.retriever.get_relevant_documents(query)
+            limited_docs = docs[:3]  # 상위 3개만 반환
             
-            # 점수 기반 필터링 (관련성이 높은 문서만 반환)
-            if hasattr(self.retriever, "get_document_scores"):
-                scores = self.retriever.get_document_scores(query)
-                # 점수가 0.3 이상인 문서만 유지
-                docs = [doc for i, doc in enumerate(docs) if i < len(scores) and scores[i] >= 0.3]
+            logger.info(f"내부 문서 검색 완료: {query[:30]}... -> {len(limited_docs)}개 문서")
+            return limited_docs
             
-            search_time = time.time() - start_time
-            logger.info(f"내부 문서 검색 완료: {len(docs)}개 문서 (소요시간: {search_time:.2f}초)")
-            
-            return docs
         except Exception as e:
             logger.error(f"내부 문서 검색 오류: {str(e)}")
             return []
@@ -479,8 +480,164 @@ class UnifiedChatbot:
             logger.error(f"인용 콘텐츠 추출 오류: {str(e)}")
             return None
     
+    def get_cached_response(self, query: str) -> Optional[Dict[str, Any]]:
+        """캐시된 응답 조회"""
+        query_hash = hashlib.md5(query.encode('utf-8')).hexdigest()
+        cached_response = self.response_cache.get(query_hash)
+        
+        if cached_response:
+            self.cache_hits += 1
+            logger.info(f"캐시 적중: {query[:30]}... (캐시 적중률: {self.get_cache_hit_rate():.1f}%)")
+            return cached_response
+        
+        self.cache_misses += 1
+        return None
+    
+    def cache_response(self, query: str, response: Dict[str, Any]) -> None:
+        """응답 캐싱 (LRU 방식)"""
+        try:
+            # 캐시 크기 제한
+            if len(self.response_cache) >= self.cache_max_size:
+                # 가장 오래된 항목 제거 (간단한 FIFO 방식)
+                oldest_key = next(iter(self.response_cache))
+                del self.response_cache[oldest_key]
+            
+            query_hash = hashlib.md5(query.encode('utf-8')).hexdigest()
+            
+            # 캐시할 응답 데이터 (중요한 정보만)
+            cached_data = {
+                "answer": response.get("answer", ""),
+                "citations": response.get("citations", []),
+                "sources_used": response.get("sources_used", {}),
+                "cached_at": time.time()
+            }
+            
+            self.response_cache[query_hash] = cached_data
+            logger.info(f"응답 캐시 저장: {query[:30]}... (캐시 크기: {len(self.response_cache)})")
+            
+        except Exception as e:
+            logger.error(f"응답 캐싱 오류: {str(e)}")
+    
+    def get_cache_hit_rate(self) -> float:
+        """캐시 적중률 계산"""
+        total_requests = self.cache_hits + self.cache_misses
+        if total_requests == 0:
+            return 0.0
+        return (self.cache_hits / total_requests) * 100
+    
+    def clear_cache(self) -> None:
+        """캐시 초기화"""
+        self.response_cache.clear()
+        self.cache_hits = 0
+        self.cache_misses = 0
+        logger.info("응답 캐시 초기화 완료")
+    
+    def format_answer_with_citations(self, answer: str, citations: List[Dict[str, Any]]) -> str:
+        """답변 텍스트에 각주 번호를 자동으로 삽입하고 각주 목록 추가"""
+        try:
+            if not citations:
+                return answer
+            
+            # 답변에서 인용 가능한 문장들을 찾아 각주 번호 삽입
+            formatted_answer = answer
+            citation_counter = 1
+            used_citations = []
+            
+            # 각 인용 문헌에 대해 관련된 부분을 찾아 각주 번호 삽입
+            for citation in citations:
+                if citation.get("type") == "internal":
+                    # 내부 문서의 경우 제목이나 키워드가 답변에 포함되어 있는지 확인
+                    title = citation.get("title", "")
+                    if title and title in formatted_answer:
+                        # 제목 뒤에 각주 번호 추가
+                        formatted_answer = formatted_answer.replace(
+                            title, 
+                            f"{title}[{citation_counter}]", 
+                            1  # 첫 번째 발견된 것만 교체
+                        )
+                        used_citations.append((citation_counter, citation))
+                        citation_counter += 1
+                elif citation.get("type") == "web":
+                    # 웹 검색 결과의 경우 첫 번째 문단 끝에 각주 추가
+                    if citation_counter == 1:  # 첫 번째 웹 인용만 처리
+                        sentences = formatted_answer.split('.')
+                        if len(sentences) > 1:
+                            sentences[0] = sentences[0] + f"[{citation_counter}]"
+                            formatted_answer = '.'.join(sentences)
+                            used_citations.append((citation_counter, citation))
+                            citation_counter += 1
+            
+            # 사용되지 않은 인용 문헌들을 답변 끝에 추가
+            for i, citation in enumerate(citations):
+                if not any(c[1] == citation for c in used_citations):
+                    # 답변 끝 부분에 각주 번호 추가
+                    if formatted_answer.endswith('.'):
+                        formatted_answer = formatted_answer[:-1] + f"[{citation_counter}]."
+                    else:
+                        formatted_answer += f"[{citation_counter}]"
+                    used_citations.append((citation_counter, citation))
+                    citation_counter += 1
+            
+            # 각주 목록 생성
+            citation_html = self.generate_citation_html(used_citations)
+            
+            # 최종 답변에 각주 목록 추가
+            final_answer = formatted_answer + "\n\n" + citation_html
+            
+            return final_answer
+            
+        except Exception as e:
+            logger.error(f"각주 포맷팅 오류: {str(e)}")
+            return answer  # 오류 발생 시 원본 답변 반환
+    
+    def generate_citation_html(self, used_citations: List[Tuple[int, Dict[str, Any]]]) -> str:
+        """각주 목록을 단순 출처 정보로 생성"""
+        try:
+            if not used_citations:
+                return ""
+            
+            citation_lines = ["**참고 자료:**"]
+            
+            for number, citation in used_citations:
+                if citation.get("type") == "internal":
+                    # 내부 문서의 경우 - 링크 없이 제목과 출처만 표시
+                    title = citation.get("title", "제목 없음")
+                    source_type = citation.get("source_type", "economy_terms")
+                    
+                    # 출처 타입을 한국어로 변환
+                    source_type_kr = "경제용어" if source_type == "economy_terms" else "최신콘텐츠"
+                    
+                    # 단순 제목과 출처만 표시
+                    citation_line = f"[{number}] {title} ({source_type_kr})"
+                    
+                    # 인용된 텍스트가 있다면 일부 미리보기 추가
+                    quoted_text = citation.get("quoted_text", "")
+                    if quoted_text:
+                        preview = quoted_text[:80].strip()  # 더 짧게 표시
+                        if len(quoted_text) > 80:
+                            preview += "..."
+                        citation_line += f" - \"{preview}\""
+                    
+                elif citation.get("type") == "web":
+                    # 웹 검색 결과의 경우
+                    title = citation.get("title", "웹 자료")
+                    citation_line = f"[{number}] {title} (웹 검색 결과)"
+                
+                else:
+                    # 기타 타입
+                    title = citation.get("title", "참고 자료")
+                    citation_line = f"[{number}] {title}"
+                
+                citation_lines.append(citation_line)
+            
+            return "\n".join(citation_lines)
+            
+        except Exception as e:
+            logger.error(f"각주 생성 오류: {str(e)}")
+            return "**참고 자료:** (각주 생성 오류)"
+    
     def process_query(self, query: str) -> Dict[str, Any]:
-        """사용자 질의 처리 (RAG + Perplexity 통합)"""
+        """사용자 질의 처리 (RAG + Perplexity 통합) - 캐싱 기능 및 각주 기능 포함"""
         query_start_time = time.time()
         logger.info(f"사용자 질의 처리 시작: {query[:50]}...")
         
@@ -490,6 +647,12 @@ class UnifiedChatbot:
                 "citations": [],
                 "sources_used": {"internal": False, "web": False}
             }
+        
+        # 캐시된 응답 확인
+        cached_response = self.get_cached_response(query)
+        if cached_response:
+            # 캐시된 응답이 있으면 즉시 반환
+            return cached_response
         
         try:
             # 1. 내부 문서 검색
@@ -558,9 +721,9 @@ class UnifiedChatbot:
                     제공된 정보를 바탕으로 사용자의 질문에 정확하고 친절하게 답변하세요.
                     내부 문서와 최신 웹 정보를 적절히 종합하여 답변하세요.
                     답변은 사용자가 이해하기 쉽게 설명하고, 필요한 경우 예시를 들어주세요.
-                    중요한 정보의 출처를 [1], [2]와 같이 표시하세요.
                     어투는 친근하고 격식없이 '~이에요', '~해요' 형식으로 답변하세요.
-                    모르는 내용이나 확실하지 않은 내용은 솔직히 모른다고 답변하세요."""),
+                    모르는 내용이나 확실하지 않은 내용은 솔직히 모른다고 답변하세요.
+                    답변에서 참고한 자료나 출처가 있다면 해당 제목이나 키워드를 자연스럽게 언급하세요."""),
                     ("human", "{context}\n\n질문: {query}")
                 ])
                 
@@ -570,7 +733,7 @@ class UnifiedChatbot:
                     "query": query
                 })
                 
-                answer = response.content
+                raw_answer = response.content
             else:
                 # 컨텍스트가 없는 경우 (일반 대화)
                 prompt = ChatPromptTemplate.from_messages([
@@ -583,25 +746,38 @@ class UnifiedChatbot:
                 
                 chain = prompt | self.llm
                 response = chain.invoke({"query": query})
-                answer = response.content
+                raw_answer = response.content
+            
+            # 각주가 포함된 최종 답변 생성
+            formatted_answer = self.format_answer_with_citations(raw_answer, citations)
             
             query_total_time = time.time() - query_start_time
             logger.info(f"질의 처리 완료 (소요시간: {query_total_time:.2f}초)")
             
-            return {
-                "answer": answer,
+            # 응답 결과 생성
+            result = {
+                "answer": formatted_answer,
+                "raw_answer": raw_answer,  # 각주가 없는 원본 답변도 포함
                 "citations": citations,
                 "sources_used": sources_used
             }
             
+            # 결과를 캐시에 저장
+            self.cache_response(query, result)
+            
+            return result
+            
         except Exception as e:
             logger.error(f"질의 처리 중 오류 발생: {str(e)}")
-            return {
+            error_result = {
                 "answer": f"죄송해요, 질문을 처리하는 중에 오류가 발생했어요. 다시 질문해주세요.",
                 "citations": [],
                 "sources_used": {"internal": False, "web": False},
                 "error": str(e)
             }
+            
+            # 에러 응답은 캐시하지 않음
+            return error_result
     
     def should_use_web_search(self, query: str) -> bool:
         """쿼리 유형에 따라 웹 검색 필요 여부 판단"""
@@ -628,7 +804,7 @@ class UnifiedChatbot:
         return has_time_keyword or has_news_keyword or (has_market_keyword and has_numbers)
     
     def get_status(self) -> Dict[str, Any]:
-        """챗봇 상태 정보 반환"""
+        """챗봇 상태 정보 반환 - 캐싱 정보 포함"""
         return {
             "initialized": self.initialized,
             "rag_initialized": self.rag_initialized,
@@ -637,6 +813,13 @@ class UnifiedChatbot:
             "chunk_count": len(self.chunks),
             "load_time": f"{self.load_time:.2f}초",
             "index_time": f"{self.index_time:.2f}초",
+            "cache_info": {
+                "cached_responses": len(self.response_cache),
+                "cache_hits": self.cache_hits,
+                "cache_misses": self.cache_misses,
+                "cache_hit_rate": f"{self.get_cache_hit_rate():.1f}%",
+                "max_cache_size": self.cache_max_size
+            },
             "api_keys": {
                 "openai": bool(self.openai_api_key),
                 "perplexity": bool(self.perplexity_api_key)

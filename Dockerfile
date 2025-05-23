@@ -9,8 +9,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     make \
-    cmake \
-    git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -19,8 +17,7 @@ COPY requirements.txt .
 
 # pip 업그레이드 및 의존성 설치
 RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install gunicorn
+    pip install --no-cache-dir -r requirements.txt
 
 # 데이터 디렉토리 생성
 RUN mkdir -p data/economy_terms data/recent_contents_final data/vector_db logs
@@ -33,22 +30,21 @@ RUN useradd -m appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
-# 볼륨 설정
-VOLUME ["/app/data", "/app/logs"]
-
 # 환경 변수 설정
 ENV ENVIRONMENT=production
 ENV PUPPETEER_ENABLED=FALSE
 ENV PORT=8080
-ENV OPENAI_API_KEY=""
-ENV PERPLEXITY_API_KEY=""
 
-# 포트 노출
-EXPOSE 8080
+# Cloud Run은 PORT 환경변수를 자동으로 설정하므로 이를 사용
+ENV FLASK_APP=server.py
+ENV FLASK_ENV=production
+
+# 포트 노출 (Cloud Run에서 자동 할당)
+EXPOSE $PORT
 
 # 헬스체크 설정
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD curl -f http://localhost:$PORT/health || exit 1
 
-# 애플리케이션 실행
-CMD exec gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --threads 2 --timeout 120 --log-level info
+# Gunicorn으로 애플리케이션 실행
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 0 --keepalive 2 --max-requests 1000 --log-level info server:app
