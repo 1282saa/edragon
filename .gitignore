@@ -82,9 +82,7 @@ logs/
 *.log
 
 # Local data
-data/chroma_db/
-data/economy_terms_backup/
-data/recent_contents_backup/
+
 
 # Temporary files
 *.tmp
@@ -115,9 +113,6 @@ rag_chatbot.log
 server.log
 current_versions.txt
 requirements_old.txt
-
-# Docker volumes
-data/
 
 # OS
 Desktop.ini

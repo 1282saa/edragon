@@ -1,0 +1,36 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+ENV ROOT_DIR=/app
+ENV ENVIRONMENT=production
+ENV PUPPETEER_ENABLED=FALSE
+ENV PORT=8080
+ENV FLASK_APP=server.py
+ENV FLASK_ENV=production
+
+# 디버깅용 디렉토리 확인
+RUN ls -la /app/data/economy_terms || echo "경제 용어 디렉토리가 없습니다"
+RUN ls -la /app/data/recent_contents_final || echo "최신 콘텐츠 디렉토리가 없습니다"
+
+RUN useradd -m appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8080
+
+# Flask 서버 직접 실행
+CMD ["python", "server.py"]
