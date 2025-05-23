@@ -7,7 +7,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Cloud Run 배포 설정
-PROJECT_ID="igneous-primacy-460407-m7"
+PROJECT_ID="godragon-460703"  # 실제 프로젝트 ID로 수정
 SERVICE_NAME="edragon"
 REGION="asia-northeast3"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"

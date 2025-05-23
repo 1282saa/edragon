@@ -11,11 +11,17 @@ import sys
 # 프로젝트 루트를 Python 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# 설정 파일 import
-from configs.config import Config
-
-# 통합 챗봇 모듈 import
-import modules.unified_chatbot as unified_chatbot
+try:
+    # 설정 파일 import
+    from configs.config import Config
+    
+    # 통합 챗봇 모듈 import
+    import modules.unified_chatbot as unified_chatbot
+except Exception as e:
+    print(f"Import error: {e}", file=sys.stderr)
+    import traceback
+    traceback.print_exc()
+    raise
 
 app = Flask(__name__)
 
@@ -465,6 +471,38 @@ def check_environment():
         env_status['missing_keys'].append('OPENAI_API_KEY')
     
     return jsonify(env_status)
+
+@app.route('/api/debug')
+def debug_info():
+    """디버그 정보 API"""
+    import platform
+    
+    debug_data = {
+        'python_version': platform.python_version(),
+        'platform': platform.platform(),
+        'is_cloud_run': bool(os.getenv('K_SERVICE')),
+        'service_name': os.getenv('K_SERVICE', 'Not in Cloud Run'),
+        'directories': {
+            'root': str(ROOT_DIR),
+            'economy_terms': str(ECONOMY_TERMS_DIR) + f" (exists: {ECONOMY_TERMS_DIR.exists()})",
+            'recent_contents': str(RECENT_CONTENTS_DIR) + f" (exists: {RECENT_CONTENTS_DIR.exists()})"
+        },
+        'files': {
+            'economy_terms_count': len(list(ECONOMY_TERMS_DIR.glob("*.md"))) if ECONOMY_TERMS_DIR.exists() else 0,
+            'recent_contents_count': len(list(RECENT_CONTENTS_DIR.glob("*.md"))) if RECENT_CONTENTS_DIR.exists() else 0
+        }
+    }
+    
+    return jsonify(debug_data)
+
+@app.route('/api/test')
+def test_api():
+    """간단한 테스트 API"""
+    return jsonify({
+        'status': 'ok',
+        'message': '서버가 정상적으로 작동 중입니다.',
+        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+    })
 
 if __name__ == '__main__':
     logger.info("통합 경제용 챗봇 서버 시작")

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>챗봇 디버그</title>
+</head>
+<body>
+    <h1>챗봇 API 테스트</h1>
+    
+    <h2>1. 상태 확인</h2>
+    <button onclick="checkStatus()">상태 확인</button>
+    <pre id="status-result"></pre>
+    
+    <h2>2. 간단한 질문 테스트</h2>
+    <input type="text" id="question" placeholder="질문을 입력하세요" value="ETF가 뭐야?">
+    <button onclick="testQuery()">질문하기</button>
+    <pre id="query-result"></pre>
+    
+    <h2>3. 스트리밍 테스트</h2>
+    <button onclick="testStream()">스트리밍 테스트</button>
+    <pre id="stream-result"></pre>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/chatbot/status`);
+                const data = await response.json();
+                document.getElementById('status-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('status-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testQuery() {
+            const question = document.getElementById('question').value;
+            document.getElementById('query-result').textContent = '처리 중...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/chatbot/query`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: question })
+                });
+                
+                const data = await response.json();
+                document.getElementById('query-result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('query-result').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function testStream() {
+            const question = document.getElementById('question').value;
+            const resultEl = document.getElementById('stream-result');
+            resultEl.textContent = '';
+            
+            try {
+                const eventSource = new EventSource(`${API_BASE}/api/chatbot/stream?query=${encodeURIComponent(question)}`);
+                
+                eventSource.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    resultEl.textContent += `${data.type}: ${JSON.stringify(data)}\n`;
+                };
+                
+                eventSource.onerror = function(error) {
+                    resultEl.textContent += `\nError: ${error}\n`;
+                    eventSource.close();
+                };
+                
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // 페이지 로드 시 상태 확인
+        window.onload = checkStatus;
+    </script>
+</body>
+</html>

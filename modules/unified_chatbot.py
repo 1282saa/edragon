@@ -24,12 +24,14 @@ from langchain.prompts import ChatPromptTemplate
 load_dotenv()
 
 # 로깅 설정
+# 로그 디렉토리 생성
+os.makedirs("logs", exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("logs/unified_chatbot.log"),
-        logging.StreamHandler()
+        logging.StreamHandler()  # stdout만 사용 (Cloud Run용)
     ]
 )
 logger = logging.getLogger('unified_chatbot')
@@ -38,7 +40,12 @@ logger = logging.getLogger('unified_chatbot')
 ROOT_DIR = Path(os.path.dirname(os.path.abspath(__file__))).parent
 ECONOMY_TERMS_DIR = ROOT_DIR / "data" / "economy_terms"
 RECENT_CONTENTS_DIR = ROOT_DIR / "data" / "recent_contents_final"
-PERSISTENT_DIR = ROOT_DIR / "data" / "vector_db"
+
+# Cloud Run에서는 /tmp 디렉토리를 사용
+if os.environ.get('K_SERVICE'):  # Cloud Run 환경 감지
+    PERSISTENT_DIR = Path("/tmp/vector_db")
+else:
+    PERSISTENT_DIR = ROOT_DIR / "data" / "vector_db"
 
 class UnifiedChatbot:
     """GPT와 Perplexity API를 통합한 챗봇 시스템"""
